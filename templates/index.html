@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Style Transfer Demo</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    .style-sample {
+      width: 50px;
+      height: 50px;
+      display: inline-block;
+      border: 1px solid #ccc;
+      margin-right: 5px;
+    }
+    #spinner { display: none; }
+  </style>
+</head>
+<body class="p-4">
+  <h1 class="mb-4">Image Style Transformer</h1>
+  <form id="upload-form">
+    <div class="mb-3">
+      <label for="image" class="form-label">Upload Image</label>
+      <input type="file" class="form-control" id="image" name="image" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Choose Style</label>
+      <div id="style-options" class="mb-2">
+        {% for s in styles %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="style" id="style-{{s.id}}" value="{{s.id}}" {% if loop.first %}checked{% endif %}>
+            <label class="form-check-label" for="style-{{s.id}}">
+              <span class="style-sample" style="background-color: {{s.color}}"></span>
+              {{s.name}}
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+      <input type="text" class="form-control" id="custom-style" name="custom_style" placeholder="Describe your style" style="display:none;">
+    </div>
+    <button type="submit" class="btn btn-primary">Generate</button>
+    <div id="spinner" class="spinner-border text-primary ms-3" role="status"></div>
+  </form>
+
+  <h2 class="mt-5">History</h2>
+  <div id="history">
+    {% for item in history %}
+      <div class="mb-3">
+        <strong>{{item.style}}</strong><br>
+        <img src="/static/generated/{{item.filename}}" class="img-thumbnail" width="200">
+        <a href="/static/generated/{{item.filename}}" download class="btn btn-sm btn-secondary ms-2">Download</a>
+      </div>
+    {% else %}
+      <p>No images generated yet.</p>
+    {% endfor %}
+  </div>
+
+<script>
+const styleRadios = document.querySelectorAll('input[name="style"]');
+const customInput = document.getElementById('custom-style');
+styleRadios.forEach(r => {
+  r.addEventListener('change', () => {
+    customInput.style.display = r.value === 'custom' ? 'block' : 'none';
+  });
+});
+
+const form = document.getElementById('upload-form');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  document.getElementById('spinner').style.display = 'inline-block';
+
+  const payResp = await fetch('/pay', {method: 'POST'});
+  const payData = await payResp.json();
+  if (payData.status !== 'success') {
+    alert('Payment failed');
+    document.getElementById('spinner').style.display = 'none';
+    return;
+  }
+
+  const formData = new FormData(form);
+  const resp = await fetch('/generate', { method: 'POST', body: formData });
+  const data = await resp.json();
+  const img = document.createElement('img');
+  img.src = data.url;
+  img.className = 'img-thumbnail';
+  img.width = 200;
+  const container = document.createElement('div');
+  container.className = 'mb-3';
+  container.appendChild(img);
+  const dl = document.createElement('a');
+  dl.href = data.url;
+  dl.download = '';
+  dl.className = 'btn btn-sm btn-secondary ms-2';
+  dl.textContent = 'Download';
+  container.appendChild(dl);
+  document.getElementById('history').prepend(container);
+
+  document.getElementById('spinner').style.display = 'none';
+});
+</script>
+</body>
+</html>
